@@ -74,7 +74,7 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     function uploadImage(file) {
-        fpsDisplay.textContent = 'Uploading...';
+        fpsDisplay.textContent = 'Analyzing image...';
         
         const formData = new FormData();
         formData.append('file', file);
@@ -86,14 +86,60 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                fpsDisplay.textContent = 'Upload successful!';
-                // You can add detection logic here later
+                // Update the counts in real-time
+                updateCounts(data.empty || 0, data.occupied || 0, data.total || 0);
+                
+                fpsDisplay.textContent = `Detected ${data.total} spaces`;
+                
+                // Show detection summary
+                if (data.total > 0) {
+                    const availability = Math.round((data.empty / data.total) * 100);
+                    fpsDisplay.textContent = `Found ${data.total} spaces (${availability}% available)`;
+                } else {
+                    fpsDisplay.textContent = 'No parking spaces detected';
+                }
             } else {
-                fpsDisplay.textContent = 'Upload failed: ' + data.error;
+                fpsDisplay.textContent = 'Detection failed: ' + (data.error || 'Unknown error');
+                updateCounts(0, 0, 0);
             }
         })
         .catch(error => {
-            fpsDisplay.textContent = 'Upload error: ' + error.message;
+            fpsDisplay.textContent = 'Error: ' + error.message;
+            updateCounts(0, 0, 0);
         });
+    }
+
+    function updateCounts(empty, occupied, total) {
+        // Update count displays
+        const emptyEl = document.getElementById('empty-count');
+        const occupiedEl = document.getElementById('occupied-count');
+        const totalEl = document.getElementById('total-count');
+        
+        if (emptyEl) emptyEl.textContent = empty;
+        if (occupiedEl) occupiedEl.textContent = occupied;
+        if (totalEl) totalEl.textContent = total;
+        
+        // Calculate and update availability
+        const availability = total > 0 ? Math.round((empty / total) * 100) : 0;
+        
+        const availabilityBar = document.getElementById('availability-bar');
+        const availabilityText = document.getElementById('availability-text');
+        
+        if (availabilityBar) {
+            availabilityBar.style.width = availability + '%';
+            
+            // Change color based on availability
+            if (availability > 70) {
+                availabilityBar.style.backgroundColor = '#4CAF50'; // Green
+            } else if (availability > 30) {
+                availabilityBar.style.backgroundColor = '#FF9800'; // Orange
+            } else {
+                availabilityBar.style.backgroundColor = '#F44336'; // Red
+            }
+        }
+        
+        if (availabilityText) {
+            availabilityText.textContent = availability + '% Available';
+        }
     }
 });

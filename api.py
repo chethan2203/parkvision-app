@@ -34,7 +34,7 @@ def index():
 
 @app.route('/upload', methods=['POST'])
 def upload_image():
-    """Handle image upload from web interface"""
+    """Handle image upload and detection from web interface"""
     try:
         if 'file' not in request.files:
             return jsonify({'error': 'No file uploaded'}), 400
@@ -43,15 +43,65 @@ def upload_image():
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
         
-        # For now, just return success - detection can be added later
+        if not model_loaded:
+            return jsonify({
+                'success': False,
+                'error': 'AI model not loaded',
+                'empty': 0,
+                'occupied': 0,
+                'total': 0
+            }), 500
+        
+        # Read and process image
+        image_bytes = file.read()
+        
+        if not cv2_available:
+            return jsonify({'error': 'OpenCV not available'}), 500
+            
+        import numpy as np
+        nparr = np.frombuffer(image_bytes, np.uint8)
+        image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+        
+        if image is None:
+            return jsonify({'error': 'Invalid image format'}), 400
+        
+        # Run detection
+        results = detector.detect(image)
+        counts = detector.count_spaces(results)
+        
+        # Get detection details
+        detections = []
+        if results.boxes is not None:
+            for box in results.boxes:
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                conf = float(box.conf[0])
+                cls = int(box.cls[0])
+                
+                detections.append({
+                    'bbox': [x1, y1, x2, y2],
+                    'confidence': conf,
+                    'class': detector.class_names[cls] if cls < len(detector.class_names) else 'unknown',
+                    'class_id': cls
+                })
+        
         return jsonify({
             'success': True,
-            'message': 'Image uploaded successfully',
-            'filename': file.filename,
-            'model_status': 'ready' if model_loaded else 'not_loaded'
+            'message': f'Detected {counts["total"]} objects',
+            'empty': counts.get('empty', 0),
+            'occupied': counts.get('occupied', 0), 
+            'total': counts['total'],
+            'detections': detections,
+            'filename': file.filename
         })
+        
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'success': False,
+            'error': str(e),
+            'empty': 0,
+            'occupied': 0,
+            'total': 0
+        }), 500
 
 # Initialize detector with error handling - start with pretrained model
 detector = None
@@ -162,6 +212,16 @@ def get_stats():
         'total': 0,
         'availability': 0.0,
         'timestamp': None
+    })
+
+@app.route('/counts', methods=['GET'])
+def get_counts():
+    """Get current counts for dashboard"""
+    # Return default counts - will be updated by upload
+    return jsonify({
+        'empty': 0,
+        'occupied': 0,
+        'total': 0
     })
 
 
