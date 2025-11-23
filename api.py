@@ -1,7 +1,7 @@
 """
 REST API for ParkVision
 """
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
 import cv2
 from src.detector import ParkingDetector
@@ -12,6 +12,11 @@ import os
 app = Flask(__name__)
 app.config.from_object(get_config())
 CORS(app)
+
+@app.route('/')
+def index():
+    """Main web interface"""
+    return render_template('index.html')
 
 # Initialize detector with error handling
 try:
