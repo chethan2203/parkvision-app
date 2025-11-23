@@ -109,16 +109,53 @@ model_loaded = False
 
 if cv2_available and ParkingDetector:
     try:
-        # Skip custom model for now, use pretrained YOLOv8n
-        detector = ParkingDetector('yolov8n.pt')  # This will auto-download
+        # Create a simple detector that works without custom model
+        from ultralytics import YOLO
+        import torch
+        
+        # Set PyTorch to allow unsafe loading for YOLOv8
+        torch.serialization.add_safe_globals([
+            'ultralytics.nn.tasks.DetectionModel',
+            'ultralytics.nn.modules.head.Detect',
+            'ultralytics.nn.modules.conv.Conv',
+            'ultralytics.nn.modules.block.C2f'
+        ])
+        
+        # Load YOLOv8n with unsafe loading allowed
+        model = YOLO('yolov8n.pt')
+        
+        # Create a simple detector wrapper
+        class SimpleDetector:
+            def __init__(self, model):
+                self.model = model
+                self.class_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck']
+                
+            def detect(self, image):
+                return self.model(image, conf=0.5)[0]
+                
+            def count_spaces(self, results):
+                counts = {'empty': 0, 'occupied': 0, 'total': 0}
+                if results.boxes is not None:
+                    for box in results.boxes:
+                        cls = int(box.cls[0])
+                        # Count cars, trucks, buses as occupied spaces
+                        if cls in [2, 5, 7]:  # car, bus, truck
+                            counts['occupied'] += 1
+                            counts['total'] += 1
+                return counts
+        
+        detector = SimpleDetector(model)
         model_loaded = True
-        print("✅ Using YOLOv8n pretrained model for car detection")
+        print("✅ Using YOLOv8n model for vehicle detection")
+        
     except Exception as e:
         print(f"Warning: Could not load any model: {e}")
         detector = None
         model_loaded = False
 else:
     print("⚠️ OpenCV or ParkingDetector not available")
+    detector = None
+    model_loaded = False
 
 
 @app.route('/api/health', methods=['GET'])
