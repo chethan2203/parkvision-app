@@ -3,7 +3,7 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Update package lists and install system dependencies
+# Install minimal system dependencies for OpenCV
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     libglib2.0-0 \
@@ -11,7 +11,6 @@ RUN apt-get update && \
     libxext6 \
     libxrender-dev \
     libgomp1 \
-    libgl1-mesa-glx \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
