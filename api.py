@@ -32,6 +32,27 @@ def index():
     """Main web interface"""
     return render_template('index.html')
 
+@app.route('/upload', methods=['POST'])
+def upload_image():
+    """Handle image upload from web interface"""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'error': 'No file uploaded'}), 400
+        
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({'error': 'No file selected'}), 400
+        
+        # For now, just return success - detection can be added later
+        return jsonify({
+            'success': True,
+            'message': 'Image uploaded successfully',
+            'filename': file.filename,
+            'model_status': 'ready' if model_loaded else 'not_loaded'
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 # Initialize detector with error handling - start with pretrained model
 detector = None
 model_loaded = False

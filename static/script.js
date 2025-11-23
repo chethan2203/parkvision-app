@@ -34,3 +34,66 @@ setInterval(updateStats, 1000);
 
 // Initial update
 updateStats();
+
+// Handle image upload
+document.addEventListener('DOMContentLoaded', function() {
+    const uploadArea = document.getElementById('uploadArea');
+    const imageInput = document.getElementById('imageInput');
+    const fpsDisplay = document.getElementById('fps-display');
+
+    // Click to upload
+    uploadArea.addEventListener('click', () => {
+        imageInput.click();
+    });
+
+    // Handle file selection
+    imageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            uploadImage(file);
+        }
+    });
+
+    // Drag and drop
+    uploadArea.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadArea.style.backgroundColor = '#f0f8ff';
+    });
+
+    uploadArea.addEventListener('dragleave', () => {
+        uploadArea.style.backgroundColor = '';
+    });
+
+    uploadArea.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadArea.style.backgroundColor = '';
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            uploadImage(file);
+        }
+    });
+
+    function uploadImage(file) {
+        fpsDisplay.textContent = 'Uploading...';
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                fpsDisplay.textContent = 'Upload successful!';
+                // You can add detection logic here later
+            } else {
+                fpsDisplay.textContent = 'Upload failed: ' + data.error;
+            }
+        })
+        .catch(error => {
+            fpsDisplay.textContent = 'Upload error: ' + error.message;
+        });
+    }
+});

@@ -32,9 +32,13 @@
                     </div>
                 </div>
                 <div class="video-container">
-                    <img src="{{ url_for('video_feed') }}" alt="Video Feed">
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <p>Drop parking lot image here or click to upload</p>
+                        <input type="file" id="imageInput" accept="image/*" style="display: none;">
+                    </div>
                     <div class="video-overlay">
-                        <div class="fps-counter" id="fps-display">FPS: --</div>
+                        <div class="fps-counter" id="fps-display">Ready for upload</div>
                     </div>
                 </div>
                 <div class="video-controls">
