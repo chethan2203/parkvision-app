@@ -7,22 +7,30 @@ import cv2
 from src.detector import ParkingDetector
 from config import get_config
 import base64
+import os
 
 app = Flask(__name__)
 app.config.from_object(get_config())
 CORS(app)
 
-# Initialize detector
-detector = ParkingDetector(app.config['MODEL_PATH'])
+# Initialize detector with error handling
+try:
+    detector = ParkingDetector(app.config['MODEL_PATH'])
+    model_loaded = True
+except Exception as e:
+    print(f"Warning: Could not load model: {e}")
+    detector = None
+    model_loaded = False
 
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint"""
     return jsonify({
-        'status': 'healthy',
-        'version': app.config['APP_VERSION'],
-        'model': app.config['MODEL_PATH']
+        'status': 'healthy' if model_loaded else 'model_error',
+        'version': app.config.get('APP_VERSION', '1.0.0'),
+        'model': app.config.get('MODEL_PATH', 'models/best.pt'),
+        'model_loaded': model_loaded
     })
 
 
@@ -41,6 +49,9 @@ def detect():
         - detections: list of detection details
     """
     try:
+        if not model_loaded:
+            return jsonify({'error': 'Model not loaded'}), 500
+            
         # Get image from request
         if 'image' in request.files:
             file = request.files['image']

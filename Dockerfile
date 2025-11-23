@@ -32,5 +32,5 @@ EXPOSE $PORT
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
 
-# Run application
-CMD ["python", "api.py"]
+# Run application with gunicorn for better production performance
+CMD ["gunicorn", "--bind", "0.0.0.0:$PORT", "--workers", "1", "--timeout", "120", "api:app"]

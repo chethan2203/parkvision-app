@@ -16,9 +16,19 @@ class ParkingDetector:
             model_path: Path to trained YOLO model
             conf_threshold: Confidence threshold for detections
         """
-        self.model = YOLO(model_path)
         self.conf_threshold = conf_threshold
-        self.class_names = ['empty', 'occupied']
+        try:
+            # Try to load the custom model first
+            self.model = YOLO(model_path)
+            self.class_names = ['empty', 'occupied']
+            print(f"✅ Loaded custom model: {model_path}")
+        except Exception as e:
+            print(f"⚠️ Failed to load custom model: {e}")
+            print("🔄 Falling back to YOLOv8n pretrained model...")
+            # Fallback to pretrained model for cars
+            self.model = YOLO('yolov8n.pt')
+            self.class_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck']
+            print("✅ Loaded YOLOv8n pretrained model")
         
     def detect(self, image):
         """
