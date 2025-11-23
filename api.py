@@ -3,11 +3,25 @@ REST API for ParkVision
 """
 from flask import Flask, jsonify, request, render_template
 from flask_cors import CORS
-import cv2
-from src.detector import ParkingDetector
-from config import get_config
-import base64
 import os
+import base64
+
+# Try to import OpenCV with error handling
+try:
+    import cv2
+    cv2_available = True
+    print("✅ OpenCV imported successfully")
+except ImportError as e:
+    print(f"⚠️ OpenCV import failed: {e}")
+    cv2_available = False
+
+# Import other modules
+try:
+    from src.detector import ParkingDetector
+    from config import get_config
+except ImportError as e:
+    print(f"⚠️ Import error: {e}")
+    ParkingDetector = None
 
 app = Flask(__name__)
 app.config.from_object(get_config())
@@ -19,15 +33,21 @@ def index():
     return render_template('index.html')
 
 # Initialize detector with error handling - start with pretrained model
-try:
-    # Skip custom model for now, use pretrained YOLOv8n
-    detector = ParkingDetector('yolov8n.pt')  # This will auto-download
-    model_loaded = True
-    print("✅ Using YOLOv8n pretrained model for car detection")
-except Exception as e:
-    print(f"Warning: Could not load any model: {e}")
-    detector = None
-    model_loaded = False
+detector = None
+model_loaded = False
+
+if cv2_available and ParkingDetector:
+    try:
+        # Skip custom model for now, use pretrained YOLOv8n
+        detector = ParkingDetector('yolov8n.pt')  # This will auto-download
+        model_loaded = True
+        print("✅ Using YOLOv8n pretrained model for car detection")
+    except Exception as e:
+        print(f"Warning: Could not load any model: {e}")
+        detector = None
+        model_loaded = False
+else:
+    print("⚠️ OpenCV or ParkingDetector not available")
 
 
 @app.route('/api/health', methods=['GET'])
@@ -70,6 +90,9 @@ def detect():
             return jsonify({'error': 'No image provided'}), 400
         
         # Decode image
+        if not cv2_available:
+            return jsonify({'error': 'OpenCV not available'}), 500
+            
         import numpy as np
         nparr = np.frombuffer(image_bytes, np.uint8)
         image = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
