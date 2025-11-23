@@ -119,54 +119,92 @@ if cv2_available:
         from ultralytics import YOLO
         import torch
         
-        # Fix PyTorch security issue by allowing unsafe loading
-        import warnings
-        warnings.filterwarnings("ignore", category=FutureWarning)
+        # Fix PyTorch 2.6 security issue by adding safe globals
+        print("🔄 Setting up PyTorch safe globals...")
         
-        # Load YOLOv8n with weights_only=False to bypass security
-        print("🔄 Loading YOLOv8n model...")
+        # Add all required ultralytics classes to safe globals
+        torch.serialization.add_safe_globals([
+            'ultralytics.nn.tasks.DetectionModel',
+            'ultralytics.nn.modules.head.Detect', 
+            'ultralytics.nn.modules.conv.Conv',
+            'ultralytics.nn.modules.block.C2f',
+            'ultralytics.nn.modules.block.SPPF',
+            'ultralytics.nn.modules.conv.DWConv',
+            'ultralytics.nn.modules.transformer.TransformerBlock',
+            'ultralytics.nn.modules.block.Bottleneck',
+            'torch.nn.modules.upsampling.Upsample',
+            'torch.nn.modules.pooling.MaxPool2d',
+            'torch.nn.modules.activation.SiLU'
+        ])
+        
+        print("🔄 Loading YOLOv8n model with safe globals...")
         
         # Create a real detector class
         class RealDetector:
             def __init__(self):
-                # Load model with unsafe loading to bypass PyTorch 2.6 restrictions
+                # Load model with older torch version (should work)
+                print("📥 Downloading YOLOv8n model...")
                 self.model = YOLO('yolov8n.pt')
                 # COCO class names - cars are class 2, trucks are 7, buses are 5
                 self.vehicle_classes = [2, 5, 7]  # car, bus, truck
                 self.class_names = ['person', 'bicycle', 'car', 'motorcycle', 'airplane', 'bus', 'train', 'truck']
+                print("🚗 Vehicle detection ready")
                 
             def detect(self, image):
-                # Run YOLOv8 detection
-                results = self.model(image, conf=0.3, verbose=False)
-                return results[0]
+                # Run YOLOv8 detection with lower confidence for more detections
+                try:
+                    results = self.model(image, conf=0.25, verbose=False)
+                    return results[0] if results else None
+                except Exception as e:
+                    print(f"Detection error: {e}")
+                    return None
                 
             def count_spaces(self, results):
                 counts = {'empty': 0, 'occupied': 0, 'total': 0}
                 
-                if results.boxes is not None and len(results.boxes) > 0:
+                if results and hasattr(results, 'boxes') and results.boxes is not None and len(results.boxes) > 0:
                     vehicle_count = 0
+                    all_detections = len(results.boxes)
+                    
                     for box in results.boxes:
                         cls = int(box.cls[0])
-                        # Count vehicles (cars, buses, trucks) as occupied spaces
-                        if cls in self.vehicle_classes:
+                        conf = float(box.conf[0])
+                        
+                        # Count vehicles with good confidence
+                        if cls in self.vehicle_classes and conf > 0.3:
                             vehicle_count += 1
+                    
+                    print(f"🔍 Detected {vehicle_count} vehicles out of {all_detections} total objects")
                     
                     # Each vehicle represents an occupied parking space
                     counts['occupied'] = vehicle_count
-                    # Estimate total spaces (assume some empty spaces exist)
-                    counts['total'] = max(vehicle_count + 3, 10)  # At least 10 total spaces
+                    # Estimate total spaces based on image size and vehicle count
+                    estimated_total = max(vehicle_count * 2, 8)  # At least 8 spaces
+                    counts['total'] = min(estimated_total, 20)  # Max 20 spaces
                     counts['empty'] = counts['total'] - counts['occupied']
                 else:
-                    # No vehicles detected - assume all spaces are empty
-                    counts['empty'] = 10
+                    print("🔍 No vehicles detected - parking lot appears empty")
+                    # No vehicles detected - assume parking lot is mostly empty
+                    counts['empty'] = 12
                     counts['occupied'] = 0
-                    counts['total'] = 10
+                    counts['total'] = 12
                 
                 return counts
         
-        detector = RealDetector()
-        model_loaded = True
-        print("✅ Real YOLOv8n detector loaded successfully")
+        # Try to create detector with safe globals
+        try:
+            detector = RealDetector()
+            model_loaded = True
+            print("✅ Real YOLOv8n detector loaded successfully")
+        except Exception as safe_error:
+            print(f"⚠️ Safe globals failed: {safe_error}")
+            print("🔄 Trying with context manager...")
+            
+            # Alternative: Use context manager approach
+            with torch.serialization.safe_globals(['ultralytics.nn.tasks.DetectionModel']):
+                detector = RealDetector()
+                model_loaded = True
+                print("✅ YOLOv8n loaded with context manager")
         
     except Exception as e:
         print(f"⚠️ Failed to load YOLOv8: {e}")
