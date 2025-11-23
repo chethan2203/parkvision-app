@@ -3,19 +3,22 @@ FROM python:3.9-slim
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    libgl1-mesa-glx \
+# Update package lists and install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
     libxrender-dev \
     libgomp1 \
+    libgl1-mesa-glx \
+    && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install dependencies
+# Copy requirements and install Python dependencies
 COPY requirements-render.txt .
-RUN pip install --no-cache-dir -r requirements-render.txt
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements-render.txt
 
 # Copy application files
 COPY . .
@@ -23,9 +26,7 @@ COPY . .
 # Set environment variables
 ENV FLASK_ENV=production
 ENV PYTHONUNBUFFERED=1
+ENV PORT=5000
 
-# Create startup script
-RUN echo '#!/bin/bash\necho "Starting ParkVision on port $PORT"\npython api.py' > start.sh && chmod +x start.sh
-
-# Run the application
-CMD ["./start.sh"]
+# Run the application directly
+CMD python api.py
