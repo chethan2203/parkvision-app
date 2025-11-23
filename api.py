@@ -18,12 +18,14 @@ def index():
     """Main web interface"""
     return render_template('index.html')
 
-# Initialize detector with error handling
+# Initialize detector with error handling - start with pretrained model
 try:
-    detector = ParkingDetector(app.config['MODEL_PATH'])
+    # Skip custom model for now, use pretrained YOLOv8n
+    detector = ParkingDetector('yolov8n.pt')  # This will auto-download
     model_loaded = True
+    print("✅ Using YOLOv8n pretrained model for car detection")
 except Exception as e:
-    print(f"Warning: Could not load model: {e}")
+    print(f"Warning: Could not load any model: {e}")
     detector = None
     model_loaded = False
 
